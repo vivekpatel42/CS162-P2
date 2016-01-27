@@ -403,33 +403,38 @@ object Images {
   // define a generic method named 'lift0' that takes a value of some
   // type and returns an image containing only that value.
   // !!FILL ME IN
+  def lift0[A](value: A): Img[A] = (pt: Point) => value
 
   // define a generic, curried method named 'lift1' that takes (1) a
   // function from a value of type A to a value of type B, and (2) an
   // image of type A; and returns an image of type B.
   // !!FILL ME IN
-
+  def lift1[A, B](func: A => B)(imageA: Img[A]): Img[B] = (pt: Point) => func(imageA(pt))
+	
   // define a generic, curried method named 'lift2' that takes (1) a
   // function from 2 values of types A and B to a value of type C, (2)
   // an image of type A, (3) an image of type B; and returns an image
   // of type C.
   // !!FILL ME IN
-
+  def lift2[A, B, C](func: (A, B) => C)(imageA: Img[A])(imageB: Img[B]): Img[C] = (pt: Point) => func(imageA(pt), imageB(pt))
   // define a generic, curried method named 'lift3' that takes (1) a
   // function from 3 values of types A, B, and C to a value of type D,
   // (2) an image of type A, (3) an image of type B, (4) an image of
   // type C; and returns an image of type D.
   // !!FILL ME IN
+  def lift3[A, B, C, D](func: (A, B, C) => D)(imageA: Img[A])(imageB: Img[B])(imageC: Img[C]): Img[D] = (pt: Point) => func(imageA(pt), imageB(pt), imageC(pt))
 
   // define a function 'lerpImgClr' that uses lerpClr (defined above)
   // and one of the above lifting methods to interpolate between two
   // colour images.
   // !!FILL ME IN
-
+  val lerpImgClr: ImgGray => ImgClr => ImgClr => ImgClr = imgG => img1 => img2 => lift3(lerpClr)(imgG)(img1)(img2)
+  
   // define a function 'overlayImgClr' that uses overlayClr (defined
   // above) and one of the above lifting methods to overlay one colour
   // image on top of another
   // !!FILL ME IN
+	val overlayImgClr: ImgClr => ImgClr => ImgClr = img1 => img2 => lift2(overlayClr)(img1)(img2)
 
   // define a function 'selectImgClr' that uses one of the above
   // lifting methods on an anonymous function that takes a boolean and
@@ -440,19 +445,26 @@ object Images {
   // argument based on the boolean value at that position given by the
   // ImgMask argument.
   // !!FILL ME IN
+	val selectImgClr: ImgMask => ImgClr => ImgClr => ImgClr = mask => img1 => img2 => 
+    lift3((bool: Boolean, clr1: Colour, clr2: Colour) => bool match { case true => clr1; case false => clr2})(mask)(img1)(img2)
 
   // define a function 'msk2clr' that uses one of the lifting methods
   // on an anonymous function; thus yielding a function that takes a
   // ImgMask as argument and returns an ImgClr where a true value in
   // the ImgMask is black in the ImgClr and a false value is white.
   // !!FILL ME IN
+	val msk2clr: ImgMask => ImgClr = mask => 
+    lift1((bool: Boolean) => bool match { case true => black; case false => white })(mask)
 
   // define a function 'gray2clr' that uses one of the lifting methods
   // on an anonymous function; thus yielding a function that takes a
   // ImgGray as argument and returns an ImgClr where a Value in the
   // ImgGray is turned into a corresponding Colour in the ImgClr.
   // !!FILL ME IN
+	val gray2clr: ImgGray => ImgClr = imgG => lift1((value: Value) => Colour(value, value, value, 1))(imgG)
+
 }
+
 
 // the functions dealing with spatial transforms on images. we provide
 // a set of useful type aliases to make the types more meaningful.
@@ -471,6 +483,7 @@ object SpatialTransforms {
   // point's x coordinate and the vector's y component to the point's
   // y coordinate.
   // !!FILL ME IN
+  def translatePt(vec: Vector): TransformPt = (pt: Point) => Point((pt.x + vec.x), (pt.y + vec.y))
 
   // define a method named 'scalePt' that takes a Vector as argument
   // and returns a TransformPt that scales a point according to the
@@ -479,6 +492,7 @@ object SpatialTransforms {
   // coordinate and the vector's y component by the point's y
   // coordinate.
   // !!FILL ME IN
+  def scalePt(vec: Vector): TransformPt = (pt: Point) => Point((pt.x * vec.x), (pt.y * vec.y))
 
   // define a method named 'rotatePt' that takes a Double as argument
   // specifying an angle and returns a TransformPt that rotates a
@@ -486,6 +500,7 @@ object SpatialTransforms {
   // an angle theta, the new point is (x * cos theta − y * sin theta,
   // y * cos theta + x * sin theta).
   // !!FILL ME IN
+	def rotatePt(angle: Double): TransformPt = (pt: Point) => Point((pt.x * cos(angle) - pt.y * sin(angle)), (pt.y * cos(angle) + pt.x * sin(angle)))
 
   // define a method named 'swirlPt' that takes a Double as argument
   // specifying an angle and returns a TransformPt that swirls a point
@@ -493,10 +508,12 @@ object SpatialTransforms {
   // theta, the point is rotated by the angle (|pt| * (2*pi/theta))
   // where |pt| is the distance from pt to the origin.
   // !!FILL ME IN
+	def swirlPt(angle: Double): TransformPt = (pt: Point) => Point((pt.x * cos(dist(pt) * ((2*PI)/angle)) - pt.y * sin(dist(pt) * ((2*PI)/angle))), (pt.y * cos(dist(pt) * ((2*PI)/angle)) + pt.x * sin(dist(pt) * ((2*PI)/angle))))
 
   // define a method named 'polarXf' that takes a TransformPlr as
   // argument and returns a TransformPt.
   // !!FILL ME IN
+	def polarXf(plr: TransformPlr): TransformPt = (pt: Point) => Point(plr2pt(plr(pt2plr(pt))).x, plr2pt(plr(pt2plr(pt))).y)
 
   // NOTE: the above transformations work somewhat
   // counter-intuitively, e.g., scalePt(Vector(2,2)) actually scales
@@ -514,21 +531,26 @@ object SpatialTransforms {
   // argument and returns a Filter that translates an image with
   // translatePt using the negation of that vector.
   // !!FILL ME IN
+	def translate[A](vec: Vector): Filter[A] = (imgA: Img[A]) => ((pt: Point) => imgA(translatePt(vec.neg)(pt)))
 
   // define a generic method named 'scale' that takes a vector as
   // argument and returns a Filter that scales an image with scalePt
   // using the inverse of that vector.
   // !!FILL ME IN
+	def scale[A](vec: Vector): Filter[A] = (imgA: Img[A]) => ((pt: Point) => imgA(scalePt(vec.inverse)(pt)))
 
   // define a generic method named 'rotate' that takes an angle as
   // argument and returns a Filter that rotates an image with
   // rotatePt using the negation of that angle.
   // !!FILL ME IN
+	def rotate[A](angle: Double): Filter[A] = (imgA: Img[A]) => ((pt: Point) => imgA(rotatePt(-angle)(pt)))
 
   // define a generic method named 'swirl' that takes an angle as
   // argument and returns a Filter that swirls an image with swirlPt
   // using the negation of that angle.
   // !!FILL ME IN
+	def swirl[A](angle: Double): Filter[A] = (imgA: Img[A]) => ((pt: Point) => imgA(swirlPt(-angle)(pt)))
+
 }
 
 // the functions dealing with mask algebra, i.e., combining boolean
@@ -539,11 +561,13 @@ object Masking {
   // from Images; thus yielding an ImgMask that is always true at
   // every point.
   // !!FILL ME IN
+	val fullM: ImgMask = lift0(true)
 
   // define a function named 'emptyM' using one of the lift methods
   // from Images; thus yielding an ImgMask that is always false at
   // every point.
   // !!FILL ME IN
+	val emptyM: ImgMask = lift0(false)
 
   // define a function named 'notM' using one of the lift methods from
   // Images; thus yielding a function that returns the negation of its
@@ -551,6 +575,7 @@ object Masking {
   // whose value at a position is true iff the argument's value at
   // that position was false.
   // !!FILL ME IN
+	val notM: ImgMask => ImgMask = mask => lift1((bool: Boolean) => !bool)(mask)
 
   // define a function named 'intersectM' using one of the lift
   // methods from Images; thus yielding a function that returns the
@@ -558,6 +583,7 @@ object Masking {
   // and returning an ImgMask whose value at a position is true iff
   // both argument's values at that position were true.
   // !!FILL ME IN
+	val intersectM: ImgMask => ImgMask => ImgMask = mask1 => mask2 => lift2((bool1: Boolean, bool2: Boolean) => bool1 && bool2)(mask1)(mask2)
 
   // define a function named 'unionM' using one of the lift methods
   // from Images; thus yielding a function that returns the union of
@@ -565,6 +591,7 @@ object Masking {
   // ImgMask whose value at a position is true if either argument's
   // value at that position was true.
   // !!FILL ME IN
+	val unionM: ImgMask => ImgMask => ImgMask = mask1 => mask2 => lift2((bool1: Boolean, bool2: Boolean) => bool1 || bool2)(mask1)(mask2)
 
   // define a function named 'xorM' using one of the lift methods from
   // Images; thus yielding a function that returns the XOR of its two
@@ -572,6 +599,7 @@ object Masking {
   // whose value at a position is true if exactly one argument's value
   // at that position was true.
   // !!FILL ME IN
+	val xorM: ImgMask => ImgMask => ImgMask = mask1 => mask2 => lift2((bool1: Boolean, bool2: Boolean) => (bool1 && !bool2) || (!bool1 && bool2))(mask1)(mask2)
 
   // define a curried function named 'diffM' in terms of a subset of
   // the above defined functions (i.e., diffM is defined as a
@@ -580,6 +608,8 @@ object Masking {
   // arguments and returning an ImgMask whose value at a position is
   // true iff that position was true in X but not in Y.
   // !!FILL ME IN
+	val diffM: ImgMask => ImgMask => ImgMask = mask1 => mask2 => intersectM(mask1)(notM(mask2))
+
 }
 
 
